@@ -153,8 +153,9 @@ def findAnswer(text):
 
 if __name__ == '__main__':
     print('start')
-    filename='谈心谈话系统对接QA.csv'
-    with open(filename) as f:
+    QAfile = 'QA.csv'
+    Userfile = 'User.csv'
+    with open(QAfile) as f:
         read_csv = np.array(list(csv.reader(f)))
         questions = read_csv[1:, 1]
         answers = read_csv[1:, 2]
