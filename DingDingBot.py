@@ -127,14 +127,14 @@ def handle_info(req_data):
             print('\033[1;35m [command] \033[0m User Not Registered:', senderNick)
             send_markdown_msg('<font color=\"#ff8000\"> Insufficient User Permissions </font>', 'contact administrator for assistance', webhook_url)
             return 0
-        user_id = np.where(user_names == 'senderNick')[0][0]
-        if user_permissions[user_id] < permission_limit:
+        user_id = np.where(user_names == senderNick)[0][0]
+        if int(user_permissions[user_id]) < permission_limit:
             print('\033[1;35m [command] \033[0m Insufficient User Permissions:', senderNick)
             send_markdown_msg('<font color=\"#ff8000\"> Insufficient User Permissions </font>', 'contact administrator for assistance', webhook_url)
             return 0
         if text_info[0:4] == 'help':
             print('\033[1;35m [command] \033[0m Show Help:', senderNick)
-            send_text_msg('/help \n /list \n /add [Q] [A] \n /del [i]\n', webhook_url)
+            send_text_msg('/help\n/list\n/add [Q] [A]\n/del [i]\n', webhook_url)
         elif text_info[0:4] == 'list':
             print('\033[1;35m [command] \033[0m Show List:', senderNick)
             send_text_msg(show_QA(), webhook_url)
