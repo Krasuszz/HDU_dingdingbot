@@ -49,7 +49,7 @@ def get_data():
 
 # 钉钉sign计算
 def check_sig(timestamp):
-    app_secret = 'cdPUYXVo8kFfPfv3PChRQ6QeErv22NH5OV46YQGwuSIxW2WzKOiuk4bX35KbxLCM'
+    app_secret = apis[0]
     app_secret_enc = app_secret.encode('utf-8')
     string_to_sign = '{}\n{}'.format(timestamp, app_secret)
     string_to_sign_enc = string_to_sign.encode('utf-8')
@@ -62,7 +62,7 @@ def check_sig(timestamp):
 mod = 0
 
 def getWeather(name):
-    url = 'https://v0.yiketianqi.com/api?unescape=1&version=v91&appid=33736357&appsecret=m1HmYfTB&ext=&cityid=&city='
+    url = 'https://v0.yiketianqi.com/api?unescape=1&version=v91&'+apis[1]+'&ext=&cityid=&city='
     response = requests.get(url + name)
     result = json.loads(response.content.decode())
     # print(result)
@@ -70,7 +70,7 @@ def getWeather(name):
 
 
 def getNASA():
-    url = 'https://api.nasa.gov/planetary/apod?api_key=vsK3ocVYEWb768DrpD4cvGuoLgQumolhM3IcUNJz'
+    url = 'https://api.nasa.gov/planetary/apod?'+apis[2]
     response = requests.get(url)
     result = json.loads(response.content.decode())
     return result
@@ -334,10 +334,17 @@ def save_user():
     print('\033[1;35m [action] \033[0m Userfile saved')
     np.savetxt(Userfile, np.array([user_index, user_names, user_permissions]).T, delimiter=",", header='序号,用户名,权限等级', comments="", encoding='utf-8', fmt='%s')
 
+def read_api():
+    global apis
+    with open(APIfile) as api:
+        read_csv = np.array(list(csv.reader(api)))
+        apis = read_csv[1:, 1]
 if __name__ == '__main__':
     print('start')
     QAfile = 'QA.csv'
     Userfile = 'User.csv'
+    APIfile = 'API.csv'
     read_user()
     read_qa()
+    read_api()
     app.run(host='0.0.0.0', port=8000)
