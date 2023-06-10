@@ -70,7 +70,7 @@ def getWeather(name):
 
 
 def getNASA():
-    url = 'https://api.nasa.gov/planetary/apod?api_key=qT9H2ZeQSmv5P3NYigbigEmFtFJE2Wp6Or6RKfuZ'
+    url = 'https://api.nasa.gov/planetary/apod?api_key=vsK3ocVYEWb768DrpD4cvGuoLgQumolhM3IcUNJz'
     response = requests.get(url)
     result = json.loads(response.content.decode())
     return result
@@ -101,13 +101,6 @@ def weather(city):
     ans += '明日天气' + tomor['narrative'] + '湿度' + tomor['humidity'] + '，空气质量' + tomor['air_level'] + '\n'
     return ans.replace(' ', '')
 
-# 显示预设问答列表
-def show_QA():
-    n = len(qa_questions)
-    msg = ''
-    for i in range(n):
-        msg += qa_index[i]+'\n'+qa_questions[i]+'\n'+qa_answers[i]+'\n\n'
-    return msg
 
 def handle_info(req_data):
     # 声明mod是全局变量
@@ -125,42 +118,67 @@ def handle_info(req_data):
         text_info = text_info[1:]
         if not(senderNick in user_names):
             print('\033[1;35m [command] \033[0m User Not Registered:', senderNick)
-            send_markdown_msg('<font color=\"#ff8000\"> Insufficient User Permissions </font>', 'contact administrator for assistance', webhook_url)
+            send_markdown_msg('Insufficient User Permissions', '<font color=\"#ff8000\"> Insufficient User Permissions </font> \n> contact administrator for assistance', webhook_url)
             return 0
         user_id = np.where(user_names == senderNick)[0][0]
-        if int(user_permissions[user_id]) < permission_limit:
-            print('\033[1;35m [command] \033[0m Insufficient User Permissions:', senderNick)
-            send_markdown_msg('<font color=\"#ff8000\"> Insufficient User Permissions </font>', 'contact administrator for assistance', webhook_url)
+        user_permission = int(user_permissions[user_id])
+        if user_permission < 1:
+            insufficient_permission(senderNick, webhook_url)
             return 0
+
+        len_qa = int(qa_index[-1])  # 从index 1 开始算
         if text_info[0:4] == 'help':
             print('\033[1;35m [command] \033[0m Show Help:', senderNick)
-            send_text_msg('/help\n/list\n/add [Q] [A]\n/del [i]\n', webhook_url)
+            send_text_msg('/help\n/list\n/add [question] [answer]\n/del [index]\n/user [user] [level]', webhook_url)
         elif text_info[0:4] == 'list':
             print('\033[1;35m [command] \033[0m Show List:', senderNick)
             send_text_msg(show_QA(), webhook_url)
+
         elif text_info[0:4] == 'add ':
+            if user_permission < 2:
+                insufficient_permission(senderNick, webhook_url)
+                return 0
             text_info = text_info[4:].split(' ')
-            send_markdown_msg('<font color=\"#ff8000\"> Function Not Deployed </font>', '', webhook_url)
-            '''
             if len(text_info) == 2:
-                send_text_msg('', webhook_url)
+                add_QA(text_info[0], text_info[1], senderNick, webhook_url)
+                save_qa()
             else:
-                send_markdown_msg('<font color=\"#ff8000\"> Format Error </font>', 'send \help for more help', webhook_url)
-            '''
+                format_error(senderNick, webhook_url)
+
         elif text_info[0:4] == 'del ':
+            if user_permission < 2:
+                insufficient_permission(senderNick, webhook_url)
+                return 0
             text_info = text_info[4:]
-            send_markdown_msg('<font color=\"#ff8000\"> Function Not Deployed </font>', '', webhook_url)
-            '''
+
             if text_info.isdigit():
                 del_index = int(text_info)
-                if del_index < len(qa_questions):
-                
-                send_text_msg('', webhook_url)
+                if del_index > len_qa or del_index < 1:
+                    index_out(senderNick, webhook_url)
+                else:
+                    del_QA(del_index, senderNick, webhook_url)
+                    save_qa()
             else:
-                send_markdown_msg('<font color=\"#ff8000\"> Format Error </font>', 'send \help for more help', webhook_url)
-            '''
+                format_error(senderNick, webhook_url)
+
+        elif text_info[0:5] == 'user ':
+            if user_permission < 2:
+                insufficient_permission(senderNick, webhook_url)
+                return 0
+            text_info = text_info[5:].split(' ')
+            if len(text_info) == 2:
+                if text_info[1].isdigit():
+                    if int(text_info[1]) > 2 or int(text_info[1]) < 0:
+                        index_out(senderNick, webhook_url)
+                    else:
+                        change_user_permission(text_info[0], text_info[1], senderNick, webhook_url)
+                        save_user()
+                else:
+                    format_error(senderNick, webhook_url)
+            else:
+                format_error(senderNick, webhook_url)
         else:
-            send_markdown_msg('<font color=\"#ff8000\"> Format Error </font>', 'send \help for more help', webhook_url)
+            format_error(senderNick, webhook_url)
         return 0
 
     # 模糊匹配回答，判别回答种类
@@ -180,6 +198,26 @@ def handle_info(req_data):
         print('\033[1;34m [responses] \033[0m |text|', send_text_msg(answermsg, webhook_url))
     return 0
 
+# 用户权限不足
+def insufficient_permission(senderNick,webhook_url):
+    print('\033[1;35m [command] \033[0m User Not Registered:', senderNick)
+    send_markdown_msg('Insufficient User Permissions',
+                      '<font color=\"#ff8000\"> Insufficient User Permissions </font> \n> contact administrator for assistance',
+                      webhook_url)
+# 指令格式错误
+def format_error(senderNick, webhook_url):
+    print('\033[1;35m [command] \033[0m Format Error:', senderNick)
+    send_markdown_msg('Format Error',
+                      '<font color=\"#ff8000\"> Format Error </font> \n> send /help for more help',
+                      webhook_url)
+# 下标越界
+def index_out(senderNick, webhook_url):
+    print('\033[1;35m [command] \033[0m Index Out of Range:', senderNick)
+    send_markdown_msg('Index Out of Range',
+                      '<font color=\"#ff8000\"> Index Out of Range </font> \n> check the index and try again',
+                      webhook_url)
+
+
 # 钉钉消息推送
 def send_text_msg(message, webhook_url):
     data = {
@@ -192,7 +230,6 @@ def send_text_msg(message, webhook_url):
     req = requests.post(webhook_url, json=data)
     return req.text
 
-
 def send_markdown_msg(title, message, webhook_url):
     data = {
         "msgtype": "markdown",
@@ -203,6 +240,63 @@ def send_markdown_msg(title, message, webhook_url):
     }
     req = requests.post(webhook_url, json=data)
     return req.text
+
+# 新增QA
+def add_QA(question, answer, senderNick, webhook_url):
+    global qa_index, qa_questions, qa_answers
+    qa_index = np.append(qa_index, str(int(qa_index[-1])+1))
+    qa_questions = np.append(qa_questions, question)
+    qa_answers = np.append(qa_answers, answer)
+    print('\033[1;35m [command] \033[0m New QA Added:', senderNick)
+    send_markdown_msg('QA Successfully Added',
+                      '<font color=\"#4ce572\"> QA Successfully Added </font> \n> send /list to check the new list',
+                      webhook_url)
+# 删除指定QA
+def del_QA(del_index, senderNick, webhook_url):
+    global qa_index, qa_questions, qa_answers
+    m = 0
+    while qa_index[m] == '0':
+        m += 1
+    qa_index = np.delete(qa_index, del_index+m-1)
+    qa_questions = np.delete(qa_questions, del_index+m-1)
+    qa_answers = np.delete(qa_answers, del_index+m-1)
+    n = 1
+    for i in range(m, len(qa_index)):
+        qa_index[i] = str(n)
+        n += 1
+    print('\033[1;35m [command] \033[0m QA Deleted:', str(del_index), senderNick)
+    send_markdown_msg('QA Successfully Deleted',
+                      '<font color=\"#4ce572\"> QA Successfully Deleted </font> \n> send /list to check the new list',
+                      webhook_url)
+
+# 显示预设问答列表
+def show_QA():
+    n = len(qa_questions)
+    msg = ''
+    m = 0
+    while qa_index[m] == '0':
+        m += 1
+    for i in range(m, n):
+        msg += qa_index[i]+'\n'+qa_questions[i]+'\n'+qa_answers[i]+'\n\n'
+    return msg
+
+# 改变用户权限
+def change_user_permission(user, permission, senderNick, webhook_url):
+    global user_index, user_names, user_permissions
+    if user not in user_names:
+        user_index = np.append(user_index, str(int(user_index[-1])+1))
+        user_names = np.append(user_names, user)
+        user_permissions = np.append(user_permissions, permission)
+    else:
+        if permission == '2':
+            insufficient_permission(senderNick, webhook_url)
+            return 0
+        else:
+            user_permissions[user_names == user] = permission
+    print('\033[1;35m [command] \033[0m User Permission Changed:', user, permission, senderNick)
+    send_markdown_msg('User Permission Successfully Changed',
+                      '<font color=\"#4ce572\"> User Permission Successfully Changed </font> \n> '+user+' '+permission,
+                      webhook_url)
 
 
 # 模糊查找答案
@@ -226,20 +320,24 @@ def read_qa():
 
 def save_qa():
     print('\033[1;35m [action] \033[0m QAfile saved')
-    np.savetxt(QAfile, qa_index, delimiter=",", header='序号,问,答', comments="")
+    np.savetxt(QAfile, np.array([qa_index, qa_questions, qa_answers]).T, delimiter=",", header='序号,问,答', comments="", encoding='utf-8', fmt='%s')
 
 def read_user():
-    global user_names, user_permissions
+    global user_index, user_names, user_permissions
     with open(Userfile) as user:
         read_csv = np.array(list(csv.reader(user)))
+        user_index = read_csv[1:, 0]
         user_names = read_csv[1:, 1]
         user_permissions = read_csv[1:, 2]
-    
+
+def save_user():
+    print('\033[1;35m [action] \033[0m Userfile saved')
+    np.savetxt(Userfile, np.array([user_index, user_names, user_permissions]).T, delimiter=",", header='序号,用户名,权限等级', comments="", encoding='utf-8', fmt='%s')
+
 if __name__ == '__main__':
     print('start')
     QAfile = 'QA.csv'
     Userfile = 'User.csv'
     read_user()
     read_qa()
-    permission_limit = 1
     app.run(host='0.0.0.0', port=8000)
